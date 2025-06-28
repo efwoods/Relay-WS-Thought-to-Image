@@ -1,0 +1,12 @@
+services:
+  relay-waveform-latent-to-image-reconstruction-api:
+    container_name: relay-waveform-latent-to-image-reconstruction-api
+    image: evdev3/relay-waveform-latent-to-image-reconstruction-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    restart: unless-stopped
+    env_file:
+      - .env
