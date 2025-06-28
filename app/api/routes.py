@@ -10,7 +10,7 @@ import torch
 import base64
 import io
 import websockets
-import transforms
+from torchvision import transforms
 from io import BytesIO
 
 from core.config import settings
