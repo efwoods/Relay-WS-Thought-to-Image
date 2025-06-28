@@ -75,20 +75,38 @@ async def simulate(websocket: WebSocket):
 
 
 @router.get("/ws-info", tags=["Reconstruct"])
-async def websocket_info():
+async def reconstructed_image_info():
+    """
+    Returns metadata and schema for the /ws/reconstruct-image-from-waveform-latent WebSocket endpoint.
+    """
     return {
-        "endpoint": "/simulate/ws/simulate-image-to-waveform-latent",
-        "full_url": "ws://localhost:8000/image-simulation-to-synthetic-waveform-api/simulate/ws/simulate-image-to-waveform-latent",
+        "endpoint": "/ws/reconstruct-image-from-waveform-latent",
+        "full_url": "ws://localhost:8000/relay-waveform-latent-to-image-reconstruction-api/ws/reconstruct-image-from-waveform-latent",
         "protocol": "WebSocket",
-        "description": "Real-time simulation of image → synthetic waveform → waveform latent.",
+        "description": (
+            "Reconstructs a full-resolution image from waveform_latent and skip_connections. "
+            "Accepts serialized latents over WebSocket and sends back a base64-encoded image. "
+            "Image is also stored in Redis cache using the session ID or predetermined key."
+        ),
         "input_format": {
-            "type": "simulate",
-            "session_id": "string (optional)",
-            "image_base64": "data:image/png;base64,...",
+            "type": "waveform_latent",
+            "session_id": "string (optional, used to identify cached image)",
+            "payload": "[float list representing waveform latent]",
+            "skip_connections": "serialized PyTorch skip connection object (binary, base64-encoded or torch.save buffer)",
         },
         "output_format": {
-            "type": "waveform_latent",
-            "session_id": "copied from input",
-            "payload": "[float list representing latent]",
+            "status": "success",
+            "type": "reconstructed_image",
+            "session_id": "copied from input or 'anonymous'",
+            "image_base64": "data:image/png;base64,...",
+        },
+        "redis_cache": {
+            "key_pattern": "reconstructed:{session_id}",
+            "value_format": {
+                "type": "reconstructed_image",
+                "session_id": "{session_id}",
+                "image_base64": "data:image/png;base64,...",
+            },
+            "expiration_seconds": 600,
         },
     }
