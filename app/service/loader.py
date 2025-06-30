@@ -9,7 +9,7 @@ def load_models():
 
     image_decoder = ImageDecoder(
         latent_dim=settings.LATENT_DIM,
-        skip_connections=False,  # Preventing the use of skip connections to decrease latency
+        skip_connections=True,  # Preventing the use of skip connections to decrease latency
     ).to(settings.DEVICE)
 
     if torch.__version__ >= "2.0.0":
@@ -30,6 +30,5 @@ def get_image_resize_transform():
             transforms.Resize(
                 (settings.RESIZED_IMAGE_SIZE, settings.RESIZED_IMAGE_SIZE)
             ),
-            transforms.ToTensor(),
         ]
     )

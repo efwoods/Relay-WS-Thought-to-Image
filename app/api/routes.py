@@ -1,7 +1,6 @@
 # api/routes.py
 
-from fastapi import APIRouter
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from core.monitoring import metrics
 from core.config import settings
 from core.logging import logger
@@ -14,6 +13,12 @@ from torchvision import transforms
 from io import BytesIO
 
 from core.config import settings
+from core.monitoring import metrics
+from core.logging import logger
+import asyncio
+
+from redis.asyncio import Redis  # requires `redis>=4.2.0`
+
 
 from service.reconstruct import (
     preprocess_image_from_websocket,
@@ -72,13 +77,6 @@ async def simulate(websocket: WebSocket):
         metrics.websocket_errors.inc()
 
 
-import asyncio
-import json
-from fastapi import WebSocket, APIRouter
-from app.config import settings
-from app.metrics import metrics  # if used
-from redis.asyncio import Redis  # requires `redis>=4.2.0`
-
 router = APIRouter()
 
 
@@ -93,7 +91,7 @@ async def simulate(websocket: WebSocket):
             request = json.loads(message)
 
             if request.get("type") == "test":
-                print(f"[ImageSimulation] Received test payload: {request}")
+                logger.info(f"[ImageSimulation] Received test payload: {request}")
 
                 # Set the Redis key where the *relay* will write the final result
                 redis_key = f"reconstructed:{settings.THOUGHT_TO_IMAGE_REDIS_KEY}"
@@ -103,7 +101,9 @@ async def simulate(websocket: WebSocket):
                 await redis_client.set(redis_key, redis_value, ex=600)
 
                 # Optional: Wait for the relay to write its response back into Redis
-                print(f"[ImageSimulation] Waiting for response on key: {redis_key}")
+                logger.info(
+                    f"[ImageSimulation] Waiting for response on key: {redis_key}"
+                )
                 result = None
                 for attempt in range(60):  # 60 x 0.5s = 30s timeout
                     val = await redis_client.get(redis_key)
@@ -135,7 +135,7 @@ async def simulate(websocket: WebSocket):
                 )
 
     except Exception as e:
-        print(f"[ImageSimulation] WebSocket error: {e}")
+        logger.error(f"[ImageSimulation] WebSocket error: {e}")
         await websocket.close()
 
 
