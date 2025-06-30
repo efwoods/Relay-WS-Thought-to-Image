@@ -29,12 +29,10 @@ async def simulate(websocket: WebSocket):
     await websocket.accept()
     try:
         async for message in websocket:
-            waveform_latent, skip_connections, request = (
-                preprocess_image_from_websocket(message)
-            )
+            waveform_latent, request = preprocess_image_from_websocket(message)
 
             reconstructed_image = reconstruct_image_from_waveform_latents(
-                waveform_latent, skip_connections
+                waveform_latent
             )
 
             # Convert to base64 to send back to client
@@ -72,6 +70,73 @@ async def simulate(websocket: WebSocket):
     except Exception as e:
         logger.exception("WebSocket error in image reconstruction:")
         metrics.websocket_errors.inc()
+
+
+import asyncio
+import json
+from fastapi import WebSocket, APIRouter
+from app.config import settings
+from app.metrics import metrics  # if used
+from redis.asyncio import Redis  # requires `redis>=4.2.0`
+
+router = APIRouter()
+
+
+@router.websocket("/ws/test")
+async def simulate(websocket: WebSocket):
+    redis_client: Redis = websocket.app.state.redis
+    await websocket.accept()
+
+    try:
+        while True:
+            message = await websocket.receive_text()
+            request = json.loads(message)
+
+            if request.get("type") == "test":
+                print(f"[ImageSimulation] Received test payload: {request}")
+
+                # Set the Redis key where the *relay* will write the final result
+                redis_key = f"reconstructed:{settings.THOUGHT_TO_IMAGE_REDIS_KEY}"
+                redis_value = json.dumps(request)
+
+                # Store the original request (for frontend or later traceability)
+                await redis_client.set(redis_key, redis_value, ex=600)
+
+                # Optional: Wait for the relay to write its response back into Redis
+                print(f"[ImageSimulation] Waiting for response on key: {redis_key}")
+                result = None
+                for attempt in range(60):  # 60 x 0.5s = 30s timeout
+                    val = await redis_client.get(redis_key)
+                    if val:
+                        result = json.loads(val)
+                        break
+                    await asyncio.sleep(0.5)  # avoid busy-wait
+
+                if result is None:
+                    await websocket.send_json(
+                        {
+                            "status": "timeout",
+                            "message": f"No relay response found in Redis at {redis_key}",
+                        }
+                    )
+                else:
+                    await websocket.send_json(
+                        {
+                            "status": "forwarded",
+                            "redis_key": redis_key,
+                            "relay_response": result,
+                        }
+                    )
+                    metrics.visual_thoughts_rendered.inc()
+
+            else:
+                await websocket.send_json(
+                    {"status": "error", "message": "Unsupported message type"}
+                )
+
+    except Exception as e:
+        print(f"[ImageSimulation] WebSocket error: {e}")
+        await websocket.close()
 
 
 @router.get("/ws-info", tags=["Reconstruct"])

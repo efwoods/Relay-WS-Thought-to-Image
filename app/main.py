@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
         decode_responses=True,  # Automatically decode UTF-8 strings
     )
 
-    app.state.redis = redis_client  # ✅ make available globally
+    app.state.redis = redis_client  # make available globally
 
     yield  # Application runs here
 

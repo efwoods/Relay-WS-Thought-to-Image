@@ -7,7 +7,10 @@ from core.config import settings
 
 def load_models():
 
-    image_decoder = ImageDecoder(latent_dim=settings.LATENT_DIM).to(settings.DEVICE)
+    image_decoder = ImageDecoder(
+        latent_dim=settings.LATENT_DIM,
+        skip_connections=False,  # Preventing the use of skip connections to decrease latency
+    ).to(settings.DEVICE)
 
     if torch.__version__ >= "2.0.0":
         image_decoder = torch.compile(image_decoder)
