@@ -31,6 +31,7 @@ router = APIRouter()
 @router.websocket("/ws/reconstruct-image-from-waveform-latent")
 async def simulate(websocket: WebSocket):
     redis_client = websocket.app.state.redis
+
     await websocket.accept()
     try:
         async for message in websocket:
@@ -83,6 +84,10 @@ router = APIRouter()
 @router.websocket("/ws/test")
 async def simulate(websocket: WebSocket):
     redis_client: Redis = websocket.app.state.redis
+    logger.info(f"[ImageSimulation] Redis client type: {type(redis_client)}")
+    assert isinstance(
+        redis_client, Redis
+    ), "Incorrect Redis client type: expected async Redis"
     await websocket.accept()
 
     try:

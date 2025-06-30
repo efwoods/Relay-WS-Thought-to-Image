@@ -33,7 +33,7 @@ from core.config import settings
 from core.monitoring import metrics
 from core.logging import logger
 
-import redis
+from redis.asyncio import Redis
 
 # API Routes
 from api.routes import router
@@ -43,7 +43,7 @@ from api.routes import router
 async def lifespan(app: FastAPI):
     # Startup: initialize Whisper model
     load_dotenv()
-    redis_client = redis.Redis(
+    redis_client = Redis(
         host=settings.REDIS_HOST,  # e.g. "localhost" or a container name like "redis"
         port=settings.REDIS_PORT,  # usually 6379
         password=settings.REDIS_PASSWORD,
